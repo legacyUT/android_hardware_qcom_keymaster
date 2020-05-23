@@ -42,7 +42,12 @@
 #include <sys/stat.h>
 #include <dlfcn.h>
 
+// fwd-declare std::swap
+namespace std {
+template <class T> void swap(T&, T&);
+}
 #include <UniquePtr.h>
+
 #include <cutils/properties.h>
 
 #include "QSEEComAPI.h"
