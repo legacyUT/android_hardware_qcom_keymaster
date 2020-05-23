@@ -19,7 +19,7 @@
 #include <stdint.h>
 
 #include <hardware/hardware.h>
-#include <hardware/keymaster0.h>
+#include <hardware/keymaster.h>
 
 #include <openssl/evp.h>
 #include <openssl/bio.h>
@@ -42,7 +42,12 @@
 #include <sys/stat.h>
 #include <dlfcn.h>
 
+// fwd-declare std::swap
+namespace std {
+template <class T> void swap(T&, T&);
+}
 #include <UniquePtr.h>
+
 #include <cutils/properties.h>
 
 #include "QSEEComAPI.h"
@@ -95,7 +100,7 @@ struct RSA_Delete {
 };
 typedef UniquePtr<RSA, RSA_Delete> Unique_RSA;
 
-typedef UniquePtr<keymaster0_device_t> Unique_keymaster_device_t;
+typedef UniquePtr<keymaster_device_t> Unique_keymaster_device_t;
 
 /**
  * Many OpenSSL APIs take ownership of an argument on success but don't free the argument
@@ -105,7 +110,7 @@ typedef UniquePtr<keymaster0_device_t> Unique_keymaster_device_t;
 #define OWNERSHIP_TRANSFERRED(obj) \
     typeof (obj.release()) _dummy __attribute__((unused)) = obj.release()
 
-static int qcom_km_get_keypair_public(const keymaster0_device_t* dev,
+static int qcom_km_get_keypair_public(const keymaster_device* dev,
         const uint8_t* keyBlob, const size_t keyBlobLength,
         uint8_t** x509_data, size_t* x509_data_length) {
 
@@ -319,7 +324,7 @@ static int32_t qcom_km_ion_dealloc(struct qcom_km_ion_info_t *handle)
     return ret;
 }
 
-static int qcom_km_generate_keypair(const keymaster0_device_t* dev,
+static int qcom_km_generate_keypair(const keymaster_device_t* dev,
         const keymaster_keypair_t key_type, const void* key_params,
         uint8_t** keyBlob, size_t* keyBlobLength) {
 
@@ -388,7 +393,7 @@ static int qcom_km_generate_keypair(const keymaster0_device_t* dev,
     return 0;
 }
 
-static int qcom_km_import_keypair(const keymaster0_device_t* dev,
+static int qcom_km_import_keypair(const keymaster_device_t* dev,
         const uint8_t* key, const size_t key_length,
         uint8_t** keyBlob, size_t* keyBlobLength)
 {
@@ -473,7 +478,7 @@ static int qcom_km_import_keypair(const keymaster0_device_t* dev,
     return 0;
 }
 
-static int qcom_km_sign_data(const keymaster0_device_t* dev,
+static int qcom_km_sign_data(const keymaster_device_t* dev,
         const void* params,
         const uint8_t* keyBlob, const size_t keyBlobLength,
         const uint8_t* data, const size_t dataLength,
@@ -574,7 +579,7 @@ static int qcom_km_sign_data(const keymaster0_device_t* dev,
     return 0;
 }
 
-static int qcom_km_verify_data(const keymaster0_device_t* dev,
+static int qcom_km_verify_data(const keymaster_device_t* dev,
         const void* params,
         const uint8_t* keyBlob, const size_t keyBlobLength,
         const uint8_t* signedData, const size_t signedDataLength,
@@ -669,7 +674,7 @@ static int qcom_km_verify_data(const keymaster0_device_t* dev,
 /* Close an opened OpenSSL instance */
 static int qcom_km_close(hw_device_t *dev)
 {
-    keymaster0_device_t* km_dev = (keymaster0_device_t *)dev;
+    keymaster_device_t* km_dev = (keymaster_device_t *)dev;
     struct qcom_keymaster_handle *km_handle =(struct qcom_keymaster_handle *)km_dev->context;
 
     if (km_handle->qseecom == NULL) {
@@ -759,7 +764,7 @@ static int qcom_km_open(const hw_module_t* module, const char* name,
         free(km_handle);
         return -1;
     }
-    Unique_keymaster_device_t dev(new keymaster0_device_t);
+    Unique_keymaster_device_t dev(new keymaster_device_t);
     if (dev.get() == NULL){
         free(km_handle);
         return -ENOMEM;
@@ -778,13 +783,13 @@ static int qcom_km_open(const hw_module_t* module, const char* name,
         }
 #endif
         if (attempt_num == 0)
-            ALOGE("keymaster app is not loaded, attempt number %d", attempt_num);
+            ALOGE("keymaster app is not loaded, attempt num: %d", attempt_num);
         attempt_num++;
         sleep(PROPERTY_GET_SLEEP_INTERVAL);
     }
     if (attempt_num == MAX_PROPERTY_GET_ATTEMPTS)
     {
-        ALOGE("Keymaster app not loaded: Max attempts reached");
+        ALOGE("keymaster app not loaded: Max attempts reached");
         free(km_handle);
         return -1;
     }
